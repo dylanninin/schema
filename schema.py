@@ -1,5 +1,5 @@
 __version__ = '0.4.1-alpha'
-__all__ = ['Schema', 'And', 'Or', 'Optional', 'SchemaError']
+__all__ = ['Schema', 'And', 'Or', 'Optional', 'SchemaError', 'JSONSchema']
 
 
 class SchemaError(Exception):
@@ -210,3 +210,104 @@ def _callable_str(callable_):
     if hasattr(callable_, '__name__'):
         return callable_.__name__
     return str(callable_)
+
+
+class JSONSchema(object):
+
+    def __init__(self, schema, data, error=None):
+        import copy
+        self.schema = schema
+        self._data = copy.deepcopy(data)    # origin data
+        self.data = data    # validated data, only valid data included
+        self.error = error  # custom error message for entire schema
+        self.valid = True   # valid or not
+        self.errors = {}    # errors with the same hierarchy against origin data
+
+    def validate(self):
+        """
+        validate data against schema
+        :return:
+        """
+        schema = self.schema
+        data = self.data
+
+        # validate via Schema if is an instance of And, Or, Use
+        if isinstance(schema, (And, Or, Use)):
+            try:
+                dv = schema.validate(data)
+                self.data = dv
+                return self
+            except SchemaError as e:
+                self.valid = False
+                self.errors = e.message
+                self.data = None
+                return self
+
+        # un-package from Schema object
+        if isinstance(schema, Schema):
+            if self.error is None:
+                self.error = schema._error
+            schema = schema._schema
+
+        # data must be an instance of some type, not any type itself
+        if isinstance(data, type):
+            self.valid = False
+            self.errors = self.error or 'invalid json'
+            self.data = None
+            return self
+
+        # compare data and schema type
+        if type(data) not in (schema, type(schema)):
+            self.valid = False
+            self.errors = self.error or '{d} does not match {s}'.format(s=schema, d=data)
+            self.data = None
+            return self
+
+        # validate if is a dict
+        if isinstance(schema, dict):
+            new = dict()
+            # validate data against each key-validator pair specified in schema
+            for sk, sv in schema.iteritems():
+                # process Optional schema
+                if isinstance(sk, Optional):
+                    sk = sk._schema
+                    # escape not filled keys
+                    if sk not in data:
+                        continue
+                    # escape any other Optional object
+                    if sk in (basestring, unicode, str):
+                        continue
+                dv = data.get(sk)
+
+                # validate if the data is dict or list
+                if isinstance(sv, (dict, list)):
+                    js = JSONSchema(sv, dv).validate()
+                    self.errors[sk] = js.errors
+                    self.valid = js.valid
+                    dv = js.data
+                else:
+                    # validate via Schema
+                    try:
+                        dv = Schema(sv).validate(dv)
+                    except SchemaError as e:
+                        self.valid = False
+                        self.errors[sk] = e.message
+                        dv = None
+                # set validated value only
+                if dv:
+                    new[sk] = dv
+            self.data = new
+            return self
+
+        # validate if is a list
+        if isinstance(schema, list):
+            js_list = []
+            for ss in schema:
+                for dv in data:
+                    js = JSONSchema(ss, dv).validate()
+                    js_list.append(js)
+            self.errors = [js.errors for js in js_list]
+            self.valid = all([js.valid for js in js_list])
+            self.data = [js.data for js in js_list if js.valid]
+            return self
+        return self

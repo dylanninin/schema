@@ -5,7 +5,7 @@ import os
 
 from pytest import raises
 
-from schema import Schema, Use, And, Or, Optional, SchemaError
+from schema import Schema, Use, And, Or, Optional, SchemaError, JSONSchema
 
 
 try:
@@ -450,3 +450,28 @@ def test_optional_key_convert_failed_randomly_while_with_another_optional_object
         # (most of the time)
         assert isinstance(validated_data['created_at'], datetime.datetime)
         # assert isinstance(validated_data['created_at'], basestring)
+
+
+def test_json_schema():
+
+    assert JSONSchema(1, 1).validate().data == 1
+    assert JSONSchema(int, 1).validate().data == 1
+
+    assert JSONSchema(int, '1').validate().data is None
+    assert JSONSchema(int, int).validate().data is None
+
+    assert JSONSchema(str, 'hai').validate().data == 'hai'
+    assert JSONSchema(str, 1).validate().data is None
+    assert JSONSchema(Use(str), 1).validate().data == '1'
+
+    assert JSONSchema(list, ['a', 1]).validate().data == ['a', 1]
+
+    assert JSONSchema(dict, {'a': 1}).validate().data == {'a': 1}
+    assert JSONSchema(dict, ['a', 1]).validate().data is None
+
+    # TODO lambda
+    # assert JSONSchema(lambda n: 0 < n < 5, 3).validate().data == 3
+
+def test_json_schema_errors():
+
+    pass

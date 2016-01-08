@@ -252,14 +252,14 @@ class JSONSchema(object):
         # data must be an instance of some type, not any type itself
         if isinstance(data, type):
             self.valid = False
-            self.errors = self.error or 'invalid json'
+            self.errors = self.error or '{d} is not a valid json'.format(d=data)
             self.data = None
             return self
 
         # compare data and schema type
         if type(data) not in (schema, type(schema)):
             self.valid = False
-            self.errors = self.error or '{d} does not match {s}'.format(s=schema, d=data)
+            self.errors = self.error or '{d} is not a valid {s}'.format(s=getattr(schema, '__name__', None) or schema, d=data)
             self.data = None
             return self
 
@@ -311,3 +311,6 @@ class JSONSchema(object):
             self.data = [js.data for js in js_list if js.valid]
             return self
         return self
+
+    def __str__(self):
+        return str(self.data)

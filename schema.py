@@ -231,38 +231,6 @@ class JSONSchema(object):
         schema = self.schema
         data = self.data
 
-        # validate via Schema if is an instance of And, Or, Use
-        if isinstance(schema, (And, Or, Use)):
-            try:
-                dv = schema.validate(data)
-                self.data = dv
-                return self
-            except SchemaError as e:
-                self.valid = False
-                self.errors = e.message
-                self.data = None
-                return self
-
-        # un-package from Schema object
-        if isinstance(schema, Schema):
-            if self.error is None:
-                self.error = schema._error
-            schema = schema._schema
-
-        # data must be an instance of some type, not any type itself
-        if isinstance(data, type):
-            self.valid = False
-            self.errors = self.error or 'invalid json'
-            self.data = None
-            return self
-
-        # compare data and schema type
-        if type(data) not in (schema, type(schema)):
-            self.valid = False
-            self.errors = self.error or '{d} does not match {s}'.format(s=schema, d=data)
-            self.data = None
-            return self
-
         # validate if is a dict
         if isinstance(schema, dict):
             new = dict()
@@ -278,23 +246,10 @@ class JSONSchema(object):
                     if sk in (basestring, unicode, str):
                         continue
                 dv = data.get(sk)
-
-                # validate if the data is dict or list
-                if isinstance(sv, (dict, list)):
-                    js = JSONSchema(sv, dv).validate()
-                    self.errors[sk] = js.errors
-                    self.valid = js.valid
-                    dv = js.data
-                else:
-                    # validate via Schema
-                    try:
-                        dv = Schema(sv).validate(dv)
-                    except SchemaError as e:
-                        self.valid = False
-                        self.errors[sk] = e.message
-                        dv = None
-                # set validated value only
-                if dv:
+                js = JSONSchema(sv, dv).validate()
+                self.errors[sk] = js.errors
+                self.valid = js.valid
+                if js.valid:
                     new[sk] = dv
             self.data = new
             return self
@@ -309,5 +264,16 @@ class JSONSchema(object):
             self.errors = [js.errors for js in js_list]
             self.valid = all([js.valid for js in js_list])
             self.data = [js.data for js in js_list if js.valid]
+            return self
+
+        else:
+            try:
+                new = Schema(schema).validate(data)
+                self.data = new
+                self.errors = None
+            except SchemaError as e:
+                self.valid = False
+                self.errors = e.message
+                self.data = None
             return self
         return self

@@ -248,7 +248,7 @@ class JSONSchema(object):
                 dv = data.get(sk)
                 js = JSONSchema(sv, dv).validate()
                 self.errors[sk] = js.errors
-                self.valid = js.valid
+                self.valid = self.valid and js.valid
                 if js.valid:
                     new[sk] = dv
             self.data = new
@@ -276,4 +276,3 @@ class JSONSchema(object):
                 self.errors = e.message
                 self.data = None
             return self
-        return self

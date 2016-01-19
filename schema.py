@@ -229,7 +229,7 @@ class JSONSchema(object):
         :return:
         """
         schema = self.schema
-        data = self.data
+        data = self.data or {}
 
         # validate if is a dict
         if isinstance(schema, dict):

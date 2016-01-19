@@ -250,7 +250,7 @@ class JSONSchema(object):
                 self.errors[sk] = js.errors
                 self.valid = self.valid and js.valid
                 if js.valid:
-                    new[sk] = dv
+                    new[sk] = js.data
             self.data = new
             return self
 

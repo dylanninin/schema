@@ -229,10 +229,10 @@ class JSONSchema(object):
         :return:
         """
         schema = self.schema
-        data = self.data or {}
+        data = self.data
 
         # validate if is a dict
-        if isinstance(schema, dict):
+        if isinstance(schema, dict) and isinstance(data, dict):
             new = dict()
             # validate data against each key-validator pair specified in schema
             for sk, sv in schema.iteritems():
@@ -247,7 +247,10 @@ class JSONSchema(object):
                         continue
                 dv = data.get(sk)
                 js = JSONSchema(sv, dv).validate()
-                self.errors[sk] = js.errors
+                if sk in data:
+                    self.errors[sk] = js.errors
+                else:
+                    self.errors[sk] = "Missing key: {0}".format(sk)
                 self.valid = self.valid and js.valid
                 if js.valid:
                     new[sk] = js.data
@@ -255,7 +258,7 @@ class JSONSchema(object):
             return self
 
         # validate if is a list
-        if isinstance(schema, list):
+        if isinstance(schema, list) and isinstance(data, list):
             js_list = []
             for ss in schema:
                 for dv in data:

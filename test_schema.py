@@ -472,6 +472,83 @@ def test_json_schema():
     # TODO lambda
     # assert JSONSchema(lambda n: 0 < n < 5, 3).validate().data == 3
 
-def test_json_schema_errors():
 
-    pass
+def test_json_schema_errors_with_int():
+
+    js = JSONSchema(int, 0.1).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == '0.1 is not a valid int'
+
+    js = JSONSchema(int, 'number').validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == 'number is not a valid int'
+
+
+def test_json_schema_errors_with_str():
+
+    js = JSONSchema(str, 1).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == '1 is not a valid str'
+
+
+def test_json_schema_errors_with_bool():
+
+    js = JSONSchema(bool, 1).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == '1 is not a valid bool'
+
+
+def test_json_schema_errors_with_dict():
+
+    js = JSONSchema(dict, 1).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == '1 is not a valid dict'
+
+    js = JSONSchema(dict, None).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == 'None is not a valid dict'
+
+    js = JSONSchema(dict, (0,)).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == '(0,) is not a valid dict'
+
+    js = JSONSchema(dict, dict).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == "<type 'dict'> is not a valid json"
+
+    js = JSONSchema(dict, object).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == "<type 'object'> is not a valid json"
+
+    js = JSONSchema(dict, {'1', '2'}).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == "set(['1', '2']) is not a valid dict"
+
+    js = JSONSchema({'name': str, 'age': lambda n: 18 <= n <= 99},
+                    {'name': 'Sue', 'age': 100}).validate()
+    assert js.data == {'name': 'Sue'}
+    assert js.valid is False
+    assert js.errors == {'age': '<lambda>(100) should evaluate to True'}
+
+    # TODO object value
+    # js = JSONSchema({str: int, int: None}, {'key1': 1, 'key2': 2, 10: None, 20: None}).validate()
+    # assert js.data == {'key1': 1, 'key2': 2}
+    # assert js.valid is False
+
+
+def test_json_schema_errors_with_list():
+
+    js = JSONSchema(list, 1).validate()
+    assert js.data is None
+    assert js.valid is False
+    assert js.errors == '1 is not a valid list'

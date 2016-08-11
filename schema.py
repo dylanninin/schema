@@ -231,11 +231,10 @@ class JSONSchema(object):
         schema = self.schema
         data = self.data
 
-        # validate if is a dict
         if isinstance(schema, dict) and isinstance(data, dict):
             new = dict()
             # validate data against each key-validator pair specified in schema
-            for sk, sv in schema.iteritems():
+            for sk, sv in schema.items():
                 # process Optional schema
                 if isinstance(sk, Optional):
                     sk = sk._schema
@@ -243,7 +242,7 @@ class JSONSchema(object):
                     if sk not in data:
                         continue
                     # escape any other Optional object
-                    if sk in (basestring, unicode, str):
+                    if sk in (str,):
                         continue
                 dv = data.get(sk)
                 js = JSONSchema(sv, dv).validate()
@@ -276,6 +275,6 @@ class JSONSchema(object):
                 self.errors = None
             except SchemaError as e:
                 self.valid = False
-                self.errors = e.message
+                self.errors = str(e)
                 self.data = None
             return self

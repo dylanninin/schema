@@ -231,43 +231,10 @@ class JSONSchema(object):
         schema = self.schema
         data = self.data
 
-        # validate via Schema if is an instance of And, Or, Use
-        if isinstance(schema, (And, Or, Use)):
-            try:
-                dv = schema.validate(data)
-                self.data = dv
-                return self
-            except SchemaError as e:
-                self.valid = False
-                self.errors = e.message
-                self.data = None
-                return self
-
-        # un-package from Schema object
-        if isinstance(schema, Schema):
-            if self.error is None:
-                self.error = schema._error
-            schema = schema._schema
-
-        # data must be an instance of some type, not any type itself
-        if isinstance(data, type):
-            self.valid = False
-            self.errors = self.error or '{d} is not a valid json'.format(d=data)
-            self.data = None
-            return self
-
-        # compare data and schema type
-        if type(data) not in (schema, type(schema)):
-            self.valid = False
-            self.errors = self.error or '{d} is not a valid {s}'.format(s=getattr(schema, '__name__', None) or schema, d=data)
-            self.data = None
-            return self
-
-        # validate if is a dict
-        if isinstance(schema, dict):
+        if isinstance(schema, dict) and isinstance(data, dict):
             new = dict()
             # validate data against each key-validator pair specified in schema
-            for sk, sv in schema.iteritems():
+            for sk, sv in schema.items():
                 # process Optional schema
                 if isinstance(sk, Optional):
                     sk = sk._schema
@@ -275,32 +242,22 @@ class JSONSchema(object):
                     if sk not in data:
                         continue
                     # escape any other Optional object
-                    if sk in (basestring, unicode, str):
+                    if sk in (str,):
                         continue
                 dv = data.get(sk)
-
-                # validate if the data is dict or list
-                if isinstance(sv, (dict, list)):
-                    js = JSONSchema(sv, dv).validate()
+                js = JSONSchema(sv, dv).validate()
+                if sk in data:
                     self.errors[sk] = js.errors
-                    self.valid = js.valid
-                    dv = js.data
                 else:
-                    # validate via Schema
-                    try:
-                        dv = Schema(sv).validate(dv)
-                    except SchemaError as e:
-                        self.valid = False
-                        self.errors[sk] = e.message
-                        dv = None
-                # set validated value only
-                if dv:
-                    new[sk] = dv
+                    self.errors[sk] = "Missing key: {0}".format(sk)
+                self.valid = self.valid and js.valid
+                if js.valid:
+                    new[sk] = js.data
             self.data = new
             return self
 
         # validate if is a list
-        if isinstance(schema, list):
+        if isinstance(schema, list) and isinstance(data, list):
             js_list = []
             for ss in schema:
                 for dv in data:
@@ -310,7 +267,14 @@ class JSONSchema(object):
             self.valid = all([js.valid for js in js_list])
             self.data = [js.data for js in js_list if js.valid]
             return self
-        return self
 
-    def __str__(self):
-        return str(self.data)
+        else:
+            try:
+                new = Schema(schema).validate(data)
+                self.data = new
+                self.errors = None
+            except SchemaError as e:
+                self.valid = False
+                self.errors = str(e)
+                self.data = None
+            return self
